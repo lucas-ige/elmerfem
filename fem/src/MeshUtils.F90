@@ -14511,6 +14511,231 @@ CONTAINS
   END SUBROUTINE SphereFit
 
 
+
+  !---------------------------------------------------------------------------
+  SUBROUTINE PolynomBoundaryFit(Mesh, PParams, BCind, Ndeg, FitParams, pHeight ) 
+  !---------------------------------------------------------------------------
+    TYPE(Mesh_t), POINTER :: Mesh
+    TYPE(Valuelist_t), POINTER :: PParams
+    INTEGER, OPTIONAL :: BCind
+    INTEGER :: Ndeg
+    REAL(KIND=dp) :: FitParams(:)
+    REAL(KIND=dp), POINTER :: pHeight(:)
+    
+    REAL(KIND=dp) :: rArray(4,1)
+    LOGICAL :: Found
+    REAL(KIND=dp), POINTER :: pArray(:,:)    
+    REAL(KIND=dp), POINTER :: x(:),y(:),z(:)
+    LOGICAL, ALLOCATABLE :: ActiveNode(:)
+    REAL(KIND=dp), ALLOCATABLE :: AngleSum(:)
+    TYPE(Nodes_t) :: Nodes
+    INTEGER :: n,nd,dim,Corners(4)
+    
+    pArray => ListGetConstRealArray( PParams,'Patch Height Basis',Found )
+
+    IF(.NOT. Found ) THEN
+      dim = 3
+      x => Mesh % Nodes % x
+      y => Mesh % Nodes % y
+      z => Mesh % Nodes % z
+
+      n = Mesh % NumberOfNodes
+      ALLOCATE(ActiveNode(n), AngleSum(n))
+      ActiveNode = .FALSE.
+      AngleSum = 0.0_dp      
+      
+      CALL FindBoundaryCorners()      
+      CALL FitBoundaryPatch()
+
+      rArray(1:4,1) = Nodes % x
+      CALL ListAddConstRealArray( PParams,'Patch Corners x',4,1,rArray) 
+      rArray(1:4,1) = Nodes % y
+      CALL ListAddConstRealArray( PParams,'Patch Corners y',4,1,rArray)
+      rArray(1:4,1) = Nodes % z
+      CALL ListAddConstRealArray( PParams,'Patch Corners z',4,1,rArray)
+      rArray(1:nd,1) = pheight
+      CALL ListAddConstRealArray( PParams,'Patch Height Basis',4,1,rArray)
+
+      pArray => ListGetConstRealArray( PParams,'Patch Height Basis',Found )
+    END IF
+
+    pHeight = pArray(:,1)    
+    pArray => ListGetConstRealArray( PParams,'Patch Corners x',Found )
+    FitParams(1:4) = pArray(1:4,1)
+    pArray => ListGetConstRealArray( PParams,'Patch Corners y',Found )
+    FitParams(5:8) = pArray(1:4,1)
+    pArray => ListGetConstRealArray( PParams,'Patch Corners z',Found )
+    FitParams(9:12) = pArray(1:4,1)
+      
+  CONTAINS
+    
+
+    SUBROUTINE FindBoundaryCorners()
+
+      INTEGER :: t,t1,t2,i,j,k,i1,i2,j1,j2
+      REAL(KIND=dp) :: v1(3),v2(3),phi,Angles(4),dist,maxdist
+      TYPE(Element_t), POINTER :: Element
+      
+      t1 = Mesh % NumberOfBulkElements
+      t2 = Mesh % NumberOfBoundaryElements 
+      
+      DO t=t1+1,t2
+        Element => Mesh % Elements(t)
+        IF(Element % BoundaryInfo % Constraint /= BCInd ) CYCLE
+        
+        n  = MODULO(Element % TYPE % ElementCode, 100)
+        IF(n < 3 .OR. n > 4 ) THEN
+          CALL Fatal('PolynomBoundaryFit','2D polynom can only bet fitted on 2D elements!')
+        END IF
+
+        DO i=1,n
+          i1 = MODULO(i-2,n)+1
+          i2 = MODULO(i,n)+1
+          j = Element % NodeIndexes(i)
+          j1 = Element % NodeIndexes(i1)
+          j2 = Element % NodeIndexes(i2)
+          v1(1) = x(j1)-x(j)
+          v1(2) = y(j1)-y(j)
+          v1(3) = z(j1)-z(j)
+          v2(1) = x(j2)-x(j)
+          v2(2) = y(j2)-y(j)
+          v2(3) = z(j2)-z(j)
+          v1 = v1 / SQRT(SUM(v1**2))
+          v2 = v2 / SQRT(SUM(v2**2))        
+          phi = ACOS(SUM(v1*v2))        
+          AngleSum(j) = AngleSum(j) + phi
+          ActiveNode(j) = .TRUE.
+        END DO
+      END DO
+
+      Angles = HUGE(phi)
+      DO j=1,4
+        k = MINLOC(AngleSum, dim = 1, Mask = ActiveNode )
+        Corners(j) = k
+        Angles(j) = AngleSum(k) 
+        ! Eliminate the minimum angle and repeat to find the next smallest angle. 
+        AngleSum(k) = 3*PI
+      END DO
+
+      IF( InfoActive(20 ) ) THEN
+        Angles = ( 180_dp / PI ) * Angles
+        PRINT *,'Corners:',Corners
+        PRINT *,'Angles:',Angles
+      END IF
+
+      ! Find the two nodes furthers apart
+      maxdist = 0.0_dp
+      DO i=1,4
+        DO j=i+1,4
+          v1(1) = x(Corners(j))-x(Corners(i))
+          v1(2) = y(Corners(j))-y(Corners(i))
+          v1(3) = z(Corners(j))-z(Corners(i))
+          dist = SQRT(SUM(v1**2))
+          IF(dist > maxdist) THEN
+            i1 = i
+            i2 = j
+            maxdist = dist
+          END IF
+        END DO
+      END DO
+
+      ! Swap the nodes furthest apart so that they are nodes 1 and 3 (always: i2>i1)
+      ! Then (1-2) and (1-4) create two basis vectors for the plane.
+      IF(i1 /= 1 ) THEN
+        k = Corners(1)
+        Corners(1) = Corners(i1)
+        Corners(i1) = k
+      END IF        
+      IF(i2 /= 3) THEN
+        k = Corners(3)
+        Corners(3) = Corners(i2)
+        Corners(i2) = k
+      END IF
+      
+    END SUBROUTINE FindBoundaryCorners   
+
+
+    SUBROUTINE FitBoundaryPatch()
+      TYPE(Element_t), TARGET :: Element
+      TYPE(Element_t), POINTER :: pElement
+      INTEGER :: n,i,j,k,q,np
+      REAL(KIND=dp) :: c1(3), c2(3), c4(3), normal(3), v1(3), v2(3), &
+          u,v,w, weight, detJ, norm_proj
+      REAL(KIND=dp), ALLOCATABLE :: MASS(:,:), FORCE(:), Basis(:)
+      LOGICAL :: Erroneous, Stat
+      INTEGER :: pivot(50)
+      TYPE(GaussIntegrationPoints_t) :: IP
+      
+      n = 4
+      ALLOCATE(Nodes % x(n), Nodes % y(n), Nodes % z(n) ) 
+      DO i=1,4        
+        Nodes % x(i) = x(Corners(i))
+        Nodes % y(i) = y(Corners(i))
+        Nodes % z(i) = z(Corners(i))
+      END DO
+
+      pElement => Element
+      
+      ! Creat basis vectors for the element assuming that it can be in a plane.  
+      c1(1) = x(Corners(1))
+      c1(2) = y(Corners(1))
+      c1(3) = z(Corners(1))
+      c2(1) = x(Corners(2))
+      c2(2) = y(Corners(2))
+      c2(3) = z(Corners(2))
+      c4(1) = x(Corners(4))
+      c4(2) = y(Corners(4))
+      c4(3) = z(Corners(4))
+
+      normal = NormalDirection(c2-c1,c4-c1)
+      
+      Element % TYPE => GetElementType(404)
+      ALLOCATE(Element % PDefs )
+      Element % PDefs % P = ndeg 
+      np = (ndeg+1)**2      
+
+      IP = GaussPoints( Element, np = np, PReferenceElement = .TRUE.)
+
+      ! Currently equal weight for all nodes.
+      weight = 1.0_dp
+      DO i=1,Mesh % NumberOfNodes
+        IF(.NOT. ActiveNode(i)) CYCLE
+        v1(1) = x(i) 
+        v1(2) = y(i) 
+        v1(3) = z(i) 
+
+        norm_proj = SUM((v1-c1)*normal)
+        
+        ! We can only find the integration points on the plane defined by the superelement. 
+        v2 = v1 - norm_proj * normal
+        CALL GlobalToLocal( u,v,w,v2(1),v2(2),v2(3),pElement,Nodes )
+
+        Stat = ElementInfo(Element, Nodes, u, v, w, DetJ, Basis )
+        
+        ! Create equation involving mass matrix that solves for the coordinates at the p-dofs
+        DO q=1,nd
+          MASS(1:nd,q) = MASS(1:nd,q) + Weight * Basis(1:nd) * Basis(q) 
+        END DO        
+        FORCE(1:nd) = FORCE(1:nd) + Weight * Basis(1:nd) * norm_proj
+      END DO
+
+      ! Set Dirichlet conditions for the nodal coordinate displacements
+      DO i=1,n
+        MASS(i,1:nd) = 0.0_dp
+        MASS(i,i) = 1.0_dp
+        FORCE(i) = 0.0_dp
+      END DO
+            
+      CALL LUdecomp(MASS,nd,pivot,Erroneous)
+      IF (Erroneous) CALL Fatal('SetCurvedBoundary', 'LU-decomposition fails')      
+      pheight = FORCE
+      CALL LUSolve(nd,MASS,pheight,pivot)
+            
+    END SUBROUTINE FitBoundaryPatch
+          
+  END SUBROUTINE PolynomBoundaryFit
+
+  
   
   SUBROUTINE FollowCurvedBoundary(Model, Mesh, SetP )
     TYPE(Model_t) :: Model
@@ -14518,8 +14743,9 @@ CONTAINS
     LOGICAL, OPTIONAL :: SetP
 
     LOGICAL :: Found
-    REAL(KIND=dp) :: FitParams(8)
-    INTEGER :: Mode, bc_ind, dim
+    REAL(KIND=dp) :: FitParams(12)
+    REAL(KIND=dp), POINTER :: normheight(:)
+    INTEGER :: Mode, bc_ind, dim, ndeg
     TYPE(ValueList_t), POINTER :: BC
 
     IF(.NOT. ListCheckPrefixAnyBC( Model,'Follow') ) RETURN
@@ -14545,6 +14771,10 @@ CONTAINS
       ELSE IF( ListGetLogical(BC,'Follow Toroid Boundary', Found ) ) THEN
         CALL TorusFit(Mesh, BC, bc_ind, FitParams ) 
         Mode = 5        
+      ELSE IF( ListCheckPresent(BC,'Follow Polynom Boundary' ) ) THEN
+        ndeg = ListGetInteger( BC,'Follow Polynom Boundary', Found ) 
+        CALL PolynomBoundaryFit(Mesh, BC, bc_ind, Ndeg, FitParams, normheight ) 
+        Mode = 6        
       ELSE
         Mode = 0
       END IF
