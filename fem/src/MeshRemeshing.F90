@@ -2559,7 +2559,6 @@ SUBROUTINE DistributedRemeshParMMG(Model, InMesh,OutMesh,EdgePairs,PairCount,&
 
   Debug = .FALSE.
   Parallel = ParEnv % PEs > 1
-  FuncName = "RemeshDistParMMG"
 
   TimeVar => VariableGet( Model % Mesh % Variables, 'Timestep' )
   Time = INT(TimeVar % Values(1))
