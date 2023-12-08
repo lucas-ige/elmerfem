@@ -1324,8 +1324,8 @@
        
        LOGICAL :: Found
        INTEGER :: i,j
+       CHARACTER(:), ALLOCATABLE :: str
        TYPE(Solver_t), POINTER :: pSolver
-       CHARACTER(LEN=MAX_NAME_LEN) :: str
 
        solver_id = 0       
        Found = .FALSE.
@@ -2778,10 +2778,12 @@
        END IF
 
        RealTimestep = 1
-              
-       timestep = 0
-       DO WHILE(timestep /= Timesteps(interval))
-         
+
+       !iwheel?
+       !timestep = 0
+       !DO WHILE(timestep /= Timesteps(interval))
+       DO timestep = 1,Timesteps(interval)
+
          cum_Timestep = cum_Timestep + 1
          sStep(1) = cum_Timestep
 
@@ -3353,21 +3355,9 @@
          IF ( SteadyStateReached .AND. .NOT. (Transient .OR. Scanning) ) THEN
             IF ( Timestep >= CoupledMinIter ) EXIT
          END IF
-         
-         IF(Transient) THEN
-            Timesteps => ListGetIntegerArray( CurrentModel % Simulation, &
-            'Timestep Intervals', GotIt )
-            IF ( .NOT.GotIt ) THEN
-                CALL Fatal('ElmerSolver', 'Keyword > Timestep Intervals < MUST be ' //  &
-                    'defined for transient and scanning simulations' )
-            END IF
-         END IF
-         Timestep = Timestep + 1
 
-         stepcount = 0
-         DO i = 1, TimeIntervals
-            stepcount = stepcount + Timesteps(i)
-         END DO
+         !iwheel?
+         !Timestep = Timestep + 1
 
 !------------------------------------------------------------------------------
        END DO ! timestep within an iterval
