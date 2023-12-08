@@ -2779,10 +2779,8 @@
 
        RealTimestep = 1
 
-       !iwheel?
-       !timestep = 0
-       !DO WHILE(timestep /= Timesteps(interval))
-       DO timestep = 1,Timesteps(interval)
+       timestep = 1
+       DO WHILE(timestep <= Timesteps(interval))
 
          cum_Timestep = cum_Timestep + 1
          sStep(1) = cum_Timestep
@@ -3355,9 +3353,7 @@
          IF ( SteadyStateReached .AND. .NOT. (Transient .OR. Scanning) ) THEN
             IF ( Timestep >= CoupledMinIter ) EXIT
          END IF
-
-         !iwheel?
-         !Timestep = Timestep + 1
+         Timestep = Timestep + 1
 
 !------------------------------------------------------------------------------
        END DO ! timestep within an iterval
