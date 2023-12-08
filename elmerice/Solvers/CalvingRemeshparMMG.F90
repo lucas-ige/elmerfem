@@ -88,7 +88,7 @@ SUBROUTINE CalvingRemeshParMMG( Model, Solver, dt, Transient )
        elem_send(:), RmElem(:), RmNode(:),new_fixed_node(:), new_fixed_elem(:), FoundNode(:,:), &
        UsedElem(:), NewNodes(:), RmIslandNode(:), RmIslandElem(:)
   LOGICAL :: ImBoss, Found, Isolated, Debug,DoAniso,NSFail,CalvingOccurs,&
-       RemeshOccurs,CheckFlowConvergence, Remesh, HasNeighbour, Distributed
+       RemeshOccurs,CheckFlowConvergence, HasNeighbour, Distributed
   CHARACTER(LEN=MAX_NAME_LEN) :: SolverName, CalvingVarName
   TYPE(Variable_t), POINTER :: TimeVar
   INTEGER :: Time, remeshtimestep, proc, idx, island, node
@@ -105,8 +105,6 @@ SUBROUTINE CalvingRemeshParMMG( Model, Solver, dt, Transient )
   calv_front = 1
   MyPe = ParEnv % MyPE
   PEs = ParEnv % PEs
-
-  Remesh = .FALSE.
 
   TimeVar => VariableGet( Model % Mesh % Variables, 'Timestep' )
   TimeReal = TimeVar % Values(1)
@@ -137,13 +135,13 @@ SUBROUTINE CalvingRemeshParMMG( Model, Solver, dt, Transient )
   front_body_id =  ListGetInteger( &
        Model % BCs(front_bc_id) % Values, 'Body Id', Found, 1, Model % NumberOfBodies )
 
-  hmin = ListGetConstReal(SolverParams, "Mesh Hmin",  Default=20.0_dp)
-  hmax = ListGetConstReal(SolverParams, "Mesh Hmax",  Default=4000.0_dp)
-  hgrad = ListGetConstReal(SolverParams,"Mesh Hgrad", Default=0.5_dp)
-  hausd = ListGetConstReal(SolverParams, "Mesh Hausd",Default=20.0_dp)
-  remesh_thresh = ListGetConstReal(SolverParams,"Remeshing Distance", Default=1000.0_dp)
-  CalvingVarName = ListGetString(SolverParams,"Calving Variable Name", Default="Calving Lset")
-  remeshtimestep = ListGetInteger(SolverParams,"Remesh TimeStep", Default=2)
+  hmin = ListGetConstReal(SolverParams, "Mesh Hmin",  DefValue=20.0_dp)
+  hmax = ListGetConstReal(SolverParams, "Mesh Hmax",  DefValue=4000.0_dp)
+  hgrad = ListGetConstReal(SolverParams,"Mesh Hgrad", DefValue=0.5_dp)
+  hausd = ListGetConstReal(SolverParams, "Mesh Hausd",DefValue=20.0_dp)
+  remesh_thresh = ListGetConstReal(SolverParams,"Remeshing Distance", DefValue=1000.0_dp)
+  CalvingVarName = ListGetString(SolverParams,"Calving Variable Name", DefValue="Calving Lset")
+  remeshtimestep = ListGetInteger(SolverParams,"Remesh TimeStep", DefValue=2)
 
   IF(ParEnv % MyPE == 0) THEN
     PRINT *,ParEnv % MyPE,' hmin: ',hmin
@@ -553,7 +551,6 @@ SUBROUTINE CalvingRemeshParMMG( Model, Solver, dt, Transient )
         PRINT*,"BAD ENDING OF MMG3DLS: UNABLE TO SAVE MESH", Time
       ELSE IF ( ierr == MMG5_LOWFAILURE ) THEN
         PRINT*,"BAD ENDING OF MMG3DLS", time
-        Remesh =.TRUE.
       ENDIF
 
       CALL MMG3D_SaveMesh(mmgMesh,"test_ls.mesh",LEN(TRIM("test_ls.mesh")),ierr)
@@ -608,7 +605,7 @@ SUBROUTINE CalvingRemeshParMMG( Model, Solver, dt, Transient )
           gdofs = NewMeshR % ParallelInfo % GlobalDOFs(Element % NodeIndexes(1:NELNodes))
           DO j=1,GatheredMesh % NumberOfNodes
             IF(ANY(gdofs == GatheredMesh % ParallelInfo % GlobalDOFs(j)) .AND. &
-                 GatheredMesh % ParallelInfo % NodeInterface(j)) THEN
+                 GatheredMesh % ParallelInfo % GInterface(j)) THEN
               isolated = .FALSE.
               EXIT
             END IF
@@ -996,7 +993,7 @@ SUBROUTINE CalvingRemeshParMMG( Model, Solver, dt, Transient )
    !Some checks on the new mesh
    !----------------------------
    DO i=1,GatheredMesh % NumberOfNodes
-     IF(GatheredMesh % ParallelInfo % NodeInterface(i)) THEN
+     IF(GatheredMesh % ParallelInfo % GInterface(i)) THEN
        IF(.NOT. ASSOCIATED(GatheredMesh % ParallelInfo % Neighbourlist(i) % Neighbours)) &
             CALL Fatal(SolverName, "Neighbourlist not associated!")
        IF(SIZE(GatheredMesh % ParallelInfo % Neighbourlist(i) % Neighbours) < 2) &
