@@ -340,7 +340,7 @@ SUBROUTINE Set_MMG3D_Parameters(SolverParams, ReTrial)
   CALL Check_Parameters_Obsolite(SolverParams)
   
   ! Minimal mesh size:  hmin
-  hmin = ListGetCReal( SolverParams,'adaptive hmin', Found ) 
+  hmin = ListGetCReal( SolverParams,'adaptive min h', Found ) 
   IF(.NOT. Found) Hmin = ListGetCReal( SolverParams,'mmg hmin', Found)
   IF (Found) THEN
     CALL MMG3D_SET_DPARAMETER(mmgMesh,mmgSol,MMG3D_DPARAM_hmin,Hmin,ierr)
@@ -348,7 +348,7 @@ SUBROUTINE Set_MMG3D_Parameters(SolverParams, ReTrial)
   END IF
   
   ! Maximal mesh size - hmax
-  hmax = ListGetCReal( SolverParams,'adaptive hmax', Found ) 
+  hmax = ListGetCReal( SolverParams,'adaptive max h', Found ) 
   IF(.NOT. Found) Hmax = ListGetCReal( SolverParams, 'mmg hmax', Found)
   IF (Found) THEN
     CALL MMG3D_SET_DPARAMETER(mmgMesh,mmgSol,MMG3D_DPARAM_hmax,Hmax,ierr)
@@ -471,12 +471,13 @@ SUBROUTINE Set_MMG3D_Parameters(SolverParams, ReTrial)
   END IF
   
   Pval = ListGetCReal( SolverParams, 'MMG HgradReq',Found)
-  IF(.NOT. Found) Pval = -1.0_dp
-  CALL MMG3D_SET_DPARAMETER(mmgMesh,mmgSol,MMGPARAM_HgradReq,&
-         Pval,ierr)
-  IF ( ierr == 0 ) CALL Fatal(FuncName,&
+  IF( Found ) THEN
+    CALL MMG3D_SET_DPARAMETER(mmgMesh,mmgSol,MMGPARAM_HgradReq,&
+        Pval,ierr)
+    IF ( ierr == 0 ) CALL Fatal(FuncName,&
         'Call to MMG3D_SET_DPARAMETER <Angle detection> Failed')
-
+  END IF
+    
 !!!
 #else
      CALL Fatal('Set_MMG3D_Parameters',&
@@ -502,7 +503,7 @@ SUBROUTINE Set_PMMG_Parameters(SolverParams, ReTrial )
   CALL Check_Parameters_Obsolite(SolverParams)
   
   ! Minimal mesh size:  hmin
-  hmin = ListGetCReal( SolverParams,'adaptive hmin', Found ) 
+  hmin = ListGetCReal( SolverParams,'adaptive min h', Found ) 
   IF(.NOT. Found) Hmin = ListGetCReal( SolverParams,'mmg hmin', Found)
   
   IF (Found) THEN
@@ -512,7 +513,7 @@ SUBROUTINE Set_PMMG_Parameters(SolverParams, ReTrial )
   END IF
   
   ! Maximal mesh size - hmax
-  hmax = ListGetCReal( SolverParams,'adaptive hmax', Found ) 
+  hmax = ListGetCReal( SolverParams,'adaptive max h', Found ) 
   IF(.NOT. Found) Hmax = ListGetCReal( SolverParams, 'mmg hmax', Found)
   IF (Found) THEN
     CALL PMMG_SET_DPARAMETER(pmmgMesh,PMMGPARAM_hmax,Hmax,ierr)
@@ -1536,7 +1537,7 @@ SUBROUTINE RemeshMMG3D(Model, InMesh,OutMesh,EdgePairs,PairCount,&
         MMG5_ARG_end)
 
     IF(MultipleInputs) THEN
-      CALL ListAddConstReal(FuncParams, 'adaptive hmin', hminarray(mmgloops, 1))
+      CALL ListAddConstReal(FuncParams, 'adaptive min h', hminarray(mmgloops, 1))
       CALL ListAddConstReal(FuncParams, 'adaptive hausd', hausdarray(mmgloops, 1))
     END IF
            
