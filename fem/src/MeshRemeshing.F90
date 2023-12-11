@@ -408,21 +408,22 @@ SUBROUTINE Set_MMG3D_Parameters(SolverParams, ReTrial)
         'Call to MMG3D_SET_IPARAMETER <debug> Failed')
   END IF
 
-!!! OTHER PARAMETERS: NOT ALL TESTED
-  Pval = ListGetCReal( SolverParams, 'mmg Angle detection',Found)
-  IF (Found) THEN
-    CALL MMG3D_SET_DPARAMETER(mmgMesh,mmgSol,MMG3D_DPARAM_angleDetection,&
-         Pval,ierr)
-    IF ( ierr == 0 ) CALL Fatal(FuncName,&
-        'Call to MMG3D_SET_DPARAMETER <Angle detection> Failed')
-  ENDIF
-
-  ! !< [1/0], Avoid/allow surface modifications */ 
+  ! !< [1/0], Avoid/allow automatic angle detection */
   AngleDetect = ListGetLogical(SolverParams,'mmg No Angle detection',Found)
   IF (AngleDetect) THEN
     CALL MMG3D_SET_IPARAMETER(mmgMesh,mmgSol,MMG3D_IPARAM_angle,1,ierr)
     IF ( ierr == 0 ) CALL Fatal(FuncName,&
         'Call to MMG3D_SET_IPARAMETER <No Angle detection> Failed')
+    !!! mmg angle detection angle
+    Pval = ListGetCReal( SolverParams, 'mmg Angle detection',Found)
+    IF (Found) THEN
+      CALL MMG3D_SET_DPARAMETER(mmgMesh,mmgSol,MMG3D_DPARAM_angleDetection,&
+          Pval,ierr)
+      IF ( ierr == 0 ) CALL Fatal(FuncName,&
+          'Call to MMG3D_SET_DPARAMETER <Angle detection> Failed')
+    ELSE
+      CALL WARN(FuncName, "Using mmg default value for automatic angle detection")
+    ENDIF
   ELSE
     CALL MMG3D_SET_IPARAMETER(mmgMesh,mmgSol,MMG3D_IPARAM_angle,0,ierr)
     IF ( ierr == 0 ) CALL Fatal(FuncName,&
@@ -2683,8 +2684,6 @@ SUBROUTINE DistributedRemeshParMMG(Model, InMesh,OutMesh,EdgePairs,PairCount,&
     CALL PMMG_Set_MetSize(pmmgMesh, MMG5_Vertex, NNodes, SolType,ierr)
     IF(ierr /= 1) CALL Fatal(FuncName, "Failed to set solution size.")
 
-    SolType = MMG5_Scalar
-    ALLOCATE(Metric(NNodes, 1))
     DO i=1,NNodes
       IF(AnisoFlag) THEN
         !IF(Debug) PRINT *,'debug sol at ',i,' is: ',Metric(i,:)

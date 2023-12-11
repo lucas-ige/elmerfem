@@ -82,6 +82,7 @@ Solver 3
   MeshMetric Z Independent = Logical False
 
   Rebalance = Logical True
+  Repartition Method = String "ParMetis"
   Manually Assign Edges = Logical True
   Automatic Angle Detection = Logical False
 

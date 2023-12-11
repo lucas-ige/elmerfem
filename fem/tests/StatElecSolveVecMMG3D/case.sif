@@ -73,6 +73,7 @@ Solver 1
   Adaptive Error Limit = 0.01
   Adaptive Remesh Use MMG = Logical True
   Adaptive Mesh Numbering = Logical False
+  mmg No Angle detection = Logical True
 
 ! Keyword ensures that the adaptive algo does not start to toggle around
 ! the solution. 
