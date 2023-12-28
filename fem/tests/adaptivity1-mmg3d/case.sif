@@ -121,7 +121,6 @@ Solver 1
 
   Adaptive Remesh Use MMG = Logical True
   Adaptive Mesh Numbering = Logical False
-  mmg No Angle detection = Logical True
 
   Adaptive Max Depth = Integer 10
   Adaptive Min Depth = Integer 2

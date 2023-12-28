@@ -95,7 +95,6 @@ Solver 1
 
 ! Output directory remains the same...
   Remesh Mesh Numbering = Logical False
-  mmg No Angle detection = Logical True
 
 ! For debugging:
 !  mmg debug mode = Logical True

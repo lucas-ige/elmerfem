@@ -326,7 +326,7 @@ SUBROUTINE Set_MMG3D_Parameters(SolverParams, ReTrial)
   
 #ifdef HAVE_MMG
   REAL(KIND=dp) :: Pval
-  LOGICAL :: AngleDetect
+  LOGICAL :: NoAngleDetect
   INTEGER :: verbosity,MeMIncrease,Bucket,GMshOption,ierr
   REAL(KIND=dp) :: Hmin, Hmax, HSiz
   LOGICAL :: DebugMode,NoInsert,NoSwap,NoMove,NoSurf
@@ -409,11 +409,16 @@ SUBROUTINE Set_MMG3D_Parameters(SolverParams, ReTrial)
   END IF
 
   ! !< [1/0], Avoid/allow automatic angle detection */
-  AngleDetect = ListGetLogical(SolverParams,'mmg No Angle detection',Found)
-  IF (AngleDetect) THEN
-    CALL MMG3D_SET_IPARAMETER(mmgMesh,mmgSol,MMG3D_IPARAM_angle,1,ierr)
+  NoAngleDetect = ListGetLogical(SolverParams,'mmg No Angle detection',Found)
+  IF (NoAngleDetect) THEN
+    CALL MMG3D_SET_IPARAMETER(mmgMesh,mmgSol,MMG3D_IPARAM_angle,0,ierr)
     IF ( ierr == 0 ) CALL Fatal(FuncName,&
         'Call to MMG3D_SET_IPARAMETER <No Angle detection> Failed')
+  ELSE
+    !This is the default!
+    !CALL MMG3D_SET_IPARAMETER(mmgMesh,mmgSol,MMG3D_IPARAM_angle,1,ierr)
+    !IF ( ierr == 0 ) CALL Fatal(FuncName,&
+    !    'Call to MMG3D_SET_IPARAMETER <No Angle detection> Failed')
     !!! mmg angle detection angle
     Pval = ListGetCReal( SolverParams, 'mmg Angle detection',Found)
     IF (Found) THEN
@@ -424,10 +429,6 @@ SUBROUTINE Set_MMG3D_Parameters(SolverParams, ReTrial)
     ELSE
       CALL WARN(FuncName, "Using mmg default value for automatic angle detection")
     ENDIF
-  ELSE
-    CALL MMG3D_SET_IPARAMETER(mmgMesh,mmgSol,MMG3D_IPARAM_angle,0,ierr)
-    IF ( ierr == 0 ) CALL Fatal(FuncName,&
-        'Call to MMG3D_SET_IPARAMETER <No Angle detection> Failed')
   END IF
 
   ! [1/0] Avoid/allow point insertion
@@ -493,7 +494,7 @@ SUBROUTINE Set_PMMG_Parameters(SolverParams, ReTrial )
   
 #ifdef HAVE_PARMMG
   REAL(KIND=dp) :: Pval
-  LOGICAL :: AngleDetect
+  LOGICAL :: NoAngleDetect
   INTEGER :: verbosity,MeMIncrease,Bucket,GMshOption,ierr,niter
   REAL(KIND=dp) :: Hmin, Hmax, HSiz
   LOGICAL :: DebugMode,NoInsert,NoSwap,NoMove,NoSurf
@@ -598,9 +599,9 @@ SUBROUTINE Set_PMMG_Parameters(SolverParams, ReTrial )
   ENDIF
 
   ! !< [1/0], Avoid/allow surface modifications */ 
-  AngleDetect = ListGetLogical(SolverParams,'mmg No Angle detection',Found)
-  IF (AngleDetect) THEN
-    CALL PMMG_SET_IPARAMETER(pmmgMesh,PMMGPARAM_angle,1,ierr)
+  NoAngleDetect = ListGetLogical(SolverParams,'mmg No Angle detection',Found)
+  IF (NoAngleDetect) THEN
+    CALL PMMG_SET_IPARAMETER(pmmgMesh,PMMGPARAM_angle,0,ierr)
     IF ( ierr == 0 ) CALL Fatal(FuncName, &
          'Call to MMG3D_SET_IPARAMETER <No Angle detection> Failed')
   END IF
@@ -3548,7 +3549,7 @@ CONTAINS
 #ifdef HAVE_MMG   
     REAL(KIND=dp) :: hsiz,Pval
     INTEGER :: ier
-    LOGICAL :: AngleDetect
+    LOGICAL :: NoAngleDetect
     INTEGER :: verbosity,MeMIncrease,Bucket,GMSHoption     
     LOGICAL :: DebugMode,NoInsert,NoSwap,NoMove,NoSurf
     LOGICAL :: Found, Stat
