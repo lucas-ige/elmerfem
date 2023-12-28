@@ -3596,8 +3596,9 @@
               //TRIM(OutputFile))
         END IF
 
+        ! This was added for needs of calving where remeshing is applied and can go wrong but
+        ! we want to study the results. 
         EveryTime = ListGetLogical( vList,'Output File Each Timestep',GotIt)
-        IF(.NOT. Gotit) EveryTime = .FALSE.
         IF(EveryTime) THEN
           TimeVar => VariableGet( CurrentModel % Variables, 'Timestep' )
           Time = INT(TimeVar % Values(1))

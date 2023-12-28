@@ -1317,7 +1317,7 @@
         
       IF ( RelativeChange < NonLinearTol .AND. Iter<NonlinearIter ) EXIT
       IF ( Solver % Variable % Norm > MaxNorm) THEN
-         CALL Warn('FlowSolve', 'Exiting as norm above return value. Remesh!')
+         CALL Warn('FlowSolve', 'Exiting as nonlinear norm is above allowed maximum!')
          EXIT
       END IF
 
