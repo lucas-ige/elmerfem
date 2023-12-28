@@ -787,10 +787,9 @@ SUBROUTINE Get_MMG3D_Mesh(NewMesh, Parallel, FixedNodes, FixedElems, Calving)
     ALLOCATE( NewMesh % InvPerm( NewMesh % NumberOfBulkElements ) )
     NewMesh % InvPerm = 0    
   END IF
-
   
-  PRINT *,'Mesh Counts',NewMesh % NumberOfNodes,NewMesh % NumberOfBulkElements,&
-      NewMesh % NumberOfBoundaryElements 
+  !PRINT *,'Mesh Counts',NewMesh % NumberOfNodes,NewMesh % NumberOfBulkElements,&
+  !    NewMesh % NumberOfBoundaryElements 
   
   IF(PRESENT(FixedNodes)) THEN
     ALLOCATE(FixedNodes(NVerts+np0))
@@ -800,12 +799,6 @@ SUBROUTINE Get_MMG3D_Mesh(NewMesh, Parallel, FixedNodes, FixedElems, Calving)
     ALLOCATE(FixedElems(NTetras+NTris+na0+nt0))
     FixedNodes = .FALSE.
   END IF
-
-  IF(NPrisms /= 0) CALL Fatal("MMG3D", "Programming Error: MMG3D returns prisms")
-  IF(NQuads /= 0) CALL Fatal("MMG3D", "Programming Error: MMG3D returns quads")
-  NewMesh % NumberOfNodes = NVerts
-  NewMesh % NumberOfBulkElements = NTetras
-  NewMesh % NumberOfBoundaryElements = NTris
 
   IF(Parallel) THEN
     NewMesh % ParallelInfo % GInterface = .FALSE.
