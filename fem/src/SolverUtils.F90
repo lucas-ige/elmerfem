@@ -1764,10 +1764,34 @@ CONTAINS
 
      CALL Info(Caller,'All done',Level=12)
 
-  END SUBROUTINE DetermineSoftLimiter
+   END SUBROUTINE DetermineSoftLimiter
 !------------------------------------------------------------------------------
 
+!------------------------------------------------------------------------------
+!> Gets a string from the list by its name, if not found return empty string.
+!------------------------------------------------------------------------------
+   FUNCTION LagrangeMultiplierName( Solver, SetUnfound ) RESULT( Name )
+!------------------------------------------------------------------------------
+     TYPE(Solver_t) :: Solver
+     LOGICAL, OPTIONAL :: SetUnfound
+     CHARACTER(:), ALLOCATABLE :: Name
+!------------------------------------------------------------------------------
+     LOGICAL :: Found     
+     Name = ListGetString( Solver % Values,'Lagrange Multiplier Name', Found )
+     IF(.NOT. Found ) THEN
+       Name = 'Lagrange Multiplier '//TRIM(ListGetString(Solver % Values,'equation'))
+       IF(PRESENT(SetUnfound)) THEN
+         IF(SetUnfound ) THEN 
+           CALL Info('LagrangeMultiplierName','Defaulting name to: '//TRIM(Name))
+           CALL ListAddString( Solver % Values,'Lagrange Multiplier Name', TRIM(Name) ) 
+         END IF
+       END IF
+     END IF
+     
+   END FUNCTION LagrangeMultiplierName
+!------------------------------------------------------------------------------
 
+   
 !------------------------------------------------------------------------------
 !> Subroutine for determine the contact set and create the necessary data
 !> for setting up the contact conditions. As input the mortar projectors,
@@ -2281,7 +2305,7 @@ CONTAINS
        
      END FUNCTION CalculateContactLoad
 
-
+     
      ! Given the previous solution and the related Lagrange multiplier pick the
      ! new multiplier such that it may be visualized as a field.
      !-------------------------------------------------------------------------
@@ -2294,7 +2318,7 @@ CONTAINS
        CALL Info(Caller,'Pick lagrange coefficient from the active set to whole set',Level=10)
 
        LinSysVar => VariableGet( Model % Variables, &
-           'LagrangeMultiplier',ThisOnly = .TRUE. )
+           LagrangeMultiplierName(Solver),ThisOnly = .TRUE. )
        IF( .NOT. ASSOCIATED( LinSysVar ) ) THEN
          CALL Warn(Caller, &
              'No Lagrange multiplier field associated with linear system: '//GetVarName(Var) )
@@ -5104,11 +5128,14 @@ CONTAINS
         
         IF (ListGetLogical(ValueList,PassCondName,GotIt)) THEN
           IF (.NOT.CheckPassiveElement(Element)) CYCLE
+
           DO j=1,n
             k=Indexes(j)
             IF (k<=0) CYCLE
+
             k=Perm(k)
             IF (k<=0) CYCLE
+
             s=0._dp
             DO l=1,NDOFs
               m=NDOFs*(k-1)+l
@@ -5349,24 +5376,33 @@ CONTAINS
       DO i=1,Solver % NumberOfActiveElements
         Element => Mesh % Elements(Solver % ActiveElements(i))
         IF (CheckPassiveElement(Element)) THEN
-          n = mGetElementDOFs(Indexes,UElement=Element)
-          DO j=1,n
-            k=Indexes(j)
+          nd = mGetElementDOFs(Indexes,UElement=Element)
+          n  = Element % Type % NumberOfNodes
+          DO j=1,nd
+            k = Indexes(j)
             IF (k<=0) CYCLE
 
             k=Perm(k)
             IF (k<=0) CYCLE
 
-            IF(PassPerm(Indexes(j))==1) CYCLE
+            IF(Indexes(j)<=SIZE(PassPerm)) THEN
+              IF(PassPerm(Indexes(j))==1) CYCLE
+            END IF
 
-            s=0._dp
+!           s=0._dp
+!           DO l=1,NDOFs
+!             m=NDOFs*(k-1)+l
+!             s=s+ABS(A % Values(A % Diag(m)))
+!           END DO
+!           IF (s>EPSILON(s)) CYCLE
+
+
             DO l=1,NDOFs
+              s=0._dp
               m=NDOFs*(k-1)+l
               s=s+ABS(A % Values(A % Diag(m)))
-            END DO
-            IF (s>EPSILON(s)) CYCLE
+              IF (s>EPSILON(s)) CYCLE
 
-            DO l=1,NDOFs
               m = NDOFs*(k-1)+l
               IF(A % ConstrainedDOF(m)) CYCLE
               CALL SetSinglePoint(k,l,Solver % Variable % Values(m),.FALSE.)
@@ -17981,7 +18017,6 @@ SUBROUTINE ChangeToHarmonicSystem( Solver, BackToReal )
 END SUBROUTINE ChangeToHarmonicSystem
 !------------------------------------------------------------------------------
 
- 
 
 !------------------------------------------------------------------------------
 !>  This subroutine will solve the system with some linear restriction.
@@ -18109,18 +18144,7 @@ RECURSIVE SUBROUTINE SolveWithLinearRestriction( StiffMatrix, ForceVector, &
 
   ExportMultiplier = ListGetLogical( Solver % Values, 'Export Lagrange Multiplier', Found )
   IF ( ExportMultiplier ) THEN
-     MultiplierName = ListGetString( Solver % Values, 'Lagrange Multiplier Name', Found )
-     IF ( .NOT. Found ) THEN
-       IF( ComplexSystem ) THEN
-         MultiplierName = 'LagrangeMultiplier[LagrangeMultiplier Re:1 LagrangeMultiplier Im:1]'
-       ELSE
-         MultiplierName = 'LagrangeMultiplier'
-       END IF       
-       CALL Info( Caller,'Lagrange Multiplier Name set to: '//TRIM(MultiplierName), Level=12 )
-     ELSE
-       CALL Info( Caller,'Lagrange Multiplier Name given to: '//TRIM(MultiplierName), Level=12 )       
-     END IF
-
+     MultiplierName = LagrangeMultiplierName( Solver )
      MultVar => VariableGet(Solver % Mesh % Variables, MultiplierName)
      j = 0
      IF(ASSOCIATED(RestMatrix)) j = RestMatrix % NumberofRows
@@ -18143,7 +18167,7 @@ RECURSIVE SUBROUTINE SolveWithLinearRestriction( StiffMatrix, ForceVector, &
      END IF
 
      IF( InfoActive( 20 ) ) THEN
-       CALL VectorValuesRange(MultVar % Values,SIZE(MultVar % Values),'LagrangeMultiplier')       
+       CALL VectorValuesRange(MultVar % Values,SIZE(MultVar % Values),TRIM(MultVar % Name))
      END IF
           
      MultiplierValues => MultVar % Values
@@ -22964,10 +22988,9 @@ CONTAINS
        END IF
      END DO
 
-     Solver % MortarBCsChanged = GotSome 
-
-     ! We may want to export the lagrange multiplier as it has a physical meaning. 
      IF( GotSome ) THEN
+       Solver % MortarBCsChanged = .TRUE.
+       ! We may want to export the lagrange multiplier as it has a physical meaning. 
        CALL ListAddNewLogical(Solver % Values,'Export Lagrange Multiplier',.TRUE.) 
      END IF
             
@@ -23349,6 +23372,10 @@ CONTAINS
 
          MortarBC => Solver % MortarBCs(bc_ind) 
          Atmp => MortarBC % Projector
+
+         ! Add the number of rows already populated in the constraint matrix so we can associate
+         ! the single constraint to the correct entry in the constraint matrix.
+         MortarBC % rowoffset = sumrow
 
          IF( .NOT. ASSOCIATED( Atmp ) ) CYCLE
 
@@ -24235,9 +24262,7 @@ CONTAINS
      !---------------------------------------------------------------------------------     
      IF ( ListGetLogical( Solver % Values,'Apply Contact BCs', Found ) .AND. &
          ALLOCATED( PrevInvPerm ) ) THEN
-       MultName = ListGetString( Solver % Values, 'Lagrange Multiplier Name', Found )
-       IF ( .NOT. Found ) MultName = 'LagrangeMultiplier'
-         
+       MultName = LagrangeMultiplierName( Solver, SetUnfound = .TRUE. ) 
        Var => VariableGet(Solver % Mesh % Variables, MultName)
        IF( ASSOCIATED( Var ) ) THEN
          ALLOCATE( PrevValues( SIZE( Var % Values ) ) )
@@ -25047,8 +25072,7 @@ CONTAINS
      END IF
        
      IF ( ExportMult ) THEN
-       MultName = ListGetString( Solver % Values, 'Lagrange Multiplier Name', Found )
-       IF ( .NOT. Found ) MultName = 'LagrangeMultiplier'
+       MultName = LagrangeMultiplierName( Solver, SetUnfound = .TRUE. ) 
        Var => VariableGet(Solver % Mesh % Variables, MultName)
        ExportMult = ASSOCIATED( Var ) 
        IF( ExportMult ) THEN
