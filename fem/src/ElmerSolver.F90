@@ -3353,7 +3353,23 @@
          IF ( SteadyStateReached .AND. .NOT. (Transient .OR. Scanning) ) THEN
             IF ( Timestep >= CoupledMinIter ) EXIT
          END IF
+
+         ! if extra steps have been added need to check if the loop needs extended
+         ! (used for calving algorithm)
+         IF(Transient) THEN
+            Timesteps => ListGetIntegerArray( CurrentModel % Simulation, &
+            'Timestep Intervals', GotIt )
+            IF ( .NOT.GotIt ) THEN
+                CALL Fatal('ElmerSolver', 'Keyword > Timestep Intervals < MUST be ' //  &
+                    'defined for transient and scanning simulations' )
+            END IF
+         END IF
          Timestep = Timestep + 1
+
+         stepcount = 0
+         DO i = 1, TimeIntervals
+            stepcount = stepcount + Timesteps(i)
+         END DO
 
 !------------------------------------------------------------------------------
        END DO ! timestep within an iterval

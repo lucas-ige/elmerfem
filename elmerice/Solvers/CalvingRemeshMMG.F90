@@ -204,6 +204,10 @@ SUBROUTINE CalvingRemeshMMG( Model, Solver, dt, Transient )
   SuppressCalv = ListGetLogical(SolverParams,"Suppress Calving", DefValue=.FALSE.)
   SaveTerminus = ListGetLogical(SolverParams,"Save Terminus", DefValue=.TRUE.)
 
+  ! calving algo passes through 202 elems to mmg
+  i = ListGetInteger( Model % Bodies(Mesh % Elements(1) % BodyId) % Values, 'Material')
+  CALL ListAddLogical(Model % Materials(i) % Values,'mmg No Angle Detection',.TRUE.)
+
   IF(ParEnv % MyPE == 0) THEN
     PRINT *,ParEnv % MyPE,' hmin: ',hminarray
     PRINT *,ParEnv % MyPE,' hmax: ',hmax

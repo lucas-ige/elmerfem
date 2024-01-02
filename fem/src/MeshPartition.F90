@@ -192,11 +192,13 @@ CONTAINS
     Ngraph = Nbulk
     DIM = CoordinateSystemDimension()
     
-    ALLOCATE(PartGotNodes(ParEnv % PEs))
-    CALL MPI_ALLGATHER(NNodes > 0, 1, MPI_LOGICAL, PartGotNodes, &
-        1, MPI_LOGICAL, ELMER_COMM_WORLD, ierr)
+    IF(.NOT. Serial) THEN
+      ALLOCATE(PartGotNodes(ParEnv % PEs))
+      CALL MPI_ALLGATHER(NNodes > 0, 1, MPI_LOGICAL, PartGotNodes, &
+          1, MPI_LOGICAL, ELMER_COMM_WORLD, ierr)
 
-    DistributedMesh = ALL(PartGotNodes)
+      DistributedMesh = ALL(PartGotNodes)
+    END IF
 
     Method = ListGetString(Model % Solver % Values,"Repartition Method", Found)
     IF(.NOT. Found) THEN
@@ -212,6 +214,12 @@ CONTAINS
     IF(.NOT. Found) THEN
       CALL Info(FuncName, "Not Found 'Repartition Output Level' so assuming '0'")
       OutputLevel = 0
+    END IF
+
+    IF(Serial) THEN
+      Approach = 'partition'
+      Method = 'zoltan'
+      CALL Info(FuncName, 'used in serial so using Zoltan partition')
     END IF
 
     SELECT CASE( Method )
@@ -237,12 +245,6 @@ CONTAINS
     CASE DEFAULT
       CALL Fatal(FuncName,"Repartition method selected invalid")
     END SELECT
-
-    IF(Serial) THEN
-      Approach = 'partition'
-      Method = 'Zoltan'
-      CALL Info(FuncName, 'used in serial so using Zoltan partition')
-    END IF
 
 10  CONTINUE
 
