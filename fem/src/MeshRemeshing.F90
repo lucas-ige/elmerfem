@@ -72,6 +72,8 @@ MMG5_DATA_PTR_T :: pmmgMesh
 #include "parmmg/libparmmgtypesf.h"
 #endif
 
+INTEGER, PARAMETER :: ElmerBCOffset = 1000
+
 CONTAINS
 
 !============================================
@@ -223,7 +225,7 @@ SUBROUTINE Set_MMG3D_Mesh(Mesh, Parallel, EdgePairs, PairCount, Solver)
     CASE(303)
       ntris = ntris + 1
       CALL MMG3D_Set_triangle(mmgMesh,  NodeRefs(1), NodeRefs(2), NodeRefs(3), &
-          Element % BoundaryInfo % Constraint, ntris, ierr)
+          Element % BoundaryInfo % Constraint+ElmerBCOffset, ntris, ierr)
     CASE(404)
       nquads = nquads + 1
       CALL MMG3D_Set_quadrilateral(mmgMesh,  NodeRefs(1), NodeRefs(2), NodeRefs(3), &
@@ -455,14 +457,13 @@ SUBROUTINE Set_MMG3D_Parameters(SolverParams, ReTrial)
          'Call to MMG3D_SET_IPARAMETER <No move> Failed')
   END IF
 
-  ! [1/0], Preserve triangles at interface of 2 domains with same reference 
+  ! [1/0], Preserve triangles at interface of 2 domains with same reference
   IF( ListGetLogical(SolverParams,'MMG open body',Found) ) THEN
     CALL MMG3D_SET_IPARAMETER(mmgMesh,mmgSol,MMG3D_IPARAM_opnbdy,1,ierr)
     IF ( ierr == 0 ) CALL Fatal(FuncName,&
          'Call to MMG3D_SET_IPARAMETER <opnbdy> Failed')
   END IF
 
-  ! [1/0] 
   NoSurf = ListGetLogical(SolverParams,'MMG No surf',Found)
   IF(.NOT. Found) NoSurf = .TRUE.
   IF (NoSurf) THEN
@@ -948,6 +949,10 @@ SUBROUTINE Get_MMG3D_Mesh(NewMesh, Parallel, FixedNodes, FixedElems, Calving)
          ref   , &
          required,ierr)
     IF ( ierr /= 1 ) CALL Fatal(FuncName,'Call to MMG3D_Get_triangle failed!')
+
+
+    ref = ref - ElmerBCOffset
+    IF(ref<0) ref = 0
 
     Allocate(Element % BoundaryInfo)
     Element % BoundaryInfo % Constraint = ref
@@ -1499,10 +1504,16 @@ SUBROUTINE RemeshMMG3D(Model, InMesh,OutMesh,EdgePairs,PairCount,&
     END IF
   END IF
     
-  body_offset = CurrentModel % NumberOfBCs + CurrentModel % NumberOfBodies + 1
-  IF(.NOT. MultipleInputs) body_offset = 0 ! this is temp fix for calving see below for internal boundaries
-
   nBCs = CurrentModel % NumberOfBCs
+  body_offset = nBCs + CurrentModel % NumberOfBodies + 1
+
+  ! The feature where some of the elements are conserved and some are remeshed
+  ! does not really like the offset. Instead of fixing it we here only avoid the
+  ! problem...
+  IF( ListGetLogical( FuncParams,'Keep Unmeshed regions',Found ) ) THEN
+    body_offset = 0
+  END IF
+  
   IF( body_offset > 0 ) THEN
     DO i=1,InMesh % NumberOfBulkElements
       InMesh % Elements(i) % BodyID = InMesh % Elements(i) % BodyID + body_offset
@@ -1517,8 +1528,7 @@ SUBROUTINE RemeshMMG3D(Model, InMesh,OutMesh,EdgePairs,PairCount,&
     IF( mmgloops > 1 ) THEN
       !! Redoing adaptive mesh, release the previous mmg mesh
       CALL MMG3D_Free_all(MMG5_ARG_start, &
-          MMG5_ARG_ppMesh,mmgMesh,MMG5_ARG_ppMet,mmgSol, &
-          MMG5_ARG_end)      
+          MMG5_ARG_ppMesh,mmgMesh,MMG5_ARG_ppMet,mmgSol, MMG5_ARG_end)      
     END IF
         
     ! Enable external depende on "mmg loop"
@@ -1684,6 +1694,9 @@ SUBROUTINE RemeshMMG3D(Model, InMesh,OutMesh,EdgePairs,PairCount,&
   ! Reset the BodyIDs (see above)
   IF( body_offset > 0 ) THEN 
     OutMesh % Elements(1:Nbulk) % BodyID = OutMesh % Elements(1:Nbulk) % BodyID - body_offset
+
+    i=InMesh % NumberOfBulkElements
+    InMesh % Elements(1:i) % BodyID = InMesh % Elements(1:i) % BodyID - body_offset
   END IF
     
   ! And delete the unneeded BC elems
@@ -1701,6 +1714,9 @@ SUBROUTINE RemeshMMG3D(Model, InMesh,OutMesh,EdgePairs,PairCount,&
     END DO
     CALL CutMesh(OutMesh, RmElem=RmElement)
   END IF
+
+  RETURN
+
     
 20 CONTINUE
 
@@ -2138,7 +2154,7 @@ SUBROUTINE Set_ParMMG_Mesh(Mesh, Parallel, EdgePairs, PairCount)
     CASE(303)
       ntris = ntris + 1
       CALL PMMG_Set_triangle(pmmgMesh,  NodeRefs(1), NodeRefs(2), NodeRefs(3), &
-           Element % BoundaryInfo % Constraint, ntris, ierr)
+           Element % BoundaryInfo % Constraint+ElmerBCOffset, ntris, ierr)
     CASE(404)
       nquads = nquads + 1
       CALL PMMG_Set_quadrilateral(pmmgMesh,  NodeRefs(1), NodeRefs(2), NodeRefs(3), &
@@ -2388,6 +2404,9 @@ SUBROUTINE Get_ParMMG_Mesh(NewMesh, Parallel, FixedNodes, FixedElems)
     IF ( ierr /= 1 ) CALL Fatal('ParMMGSolver',&
          'Call to  PMMG_Get_triangle failed!')
 
+    ref = ref - ElmerBCOffset
+    if ( ref < 0 ) ref=0
+
     Allocate(Element % BoundaryInfo)
     Element % BoundaryInfo % Constraint=ref
 
@@ -2632,8 +2651,8 @@ SUBROUTINE DistributedRemeshParMMG(Model, InMesh,OutMesh,EdgePairs,PairCount,&
   END IF
     
   nBCs = CurrentModel % NumberOfBCs
-  body_offset = CurrentModel % NumberOfBCs + CurrentModel % NumberOfBodies + 1
-  body_offset = 0
+  body_offset = nBCs + CurrentModel % NumberOfBodies + 1
+! body_offset = 0
   
   IF( body_offset > 0 ) THEN
     i=InMesh % NumberOfBulkElements
@@ -2798,6 +2817,8 @@ SUBROUTINE DistributedRemeshParMMG(Model, InMesh,OutMesh,EdgePairs,PairCount,&
   !Reset the BodyIDs (see above)
   IF( body_offset > 0 ) THEN
     OutMesh % Elements(1:Nbulk) % BodyID = OutMesh % Elements(1:NBulk) % BodyID - body_offset
+    i=InMesh % NumberOfBulkElements
+    InMesh % Elements(1:i) % BodyID = InMesh % Elements(1:i) % BodyID - body_offset
   END IF
 
   !And delete the unneeded BC elems
