@@ -57,7 +57,8 @@ CONTAINS
     INTEGER :: n
     REAL(KIND=dp) :: Normals(:), Coord(:)
 !------------------------------------------------------------------------------
-    INTEGER :: i, j, k, Usedn, Setn,  pn,nn
+    INTEGER :: i, i2, j, k, Usedn, Setn, pn, nn, &
+               Usedn2, Setn2, np2, pn2, ind(128,2), ind2(128,2)
     LOGICAL, ALLOCATABLE :: Used(:)
     INTEGER, ALLOCATABLE :: Set(:), Ref(:)
 
@@ -119,7 +120,7 @@ CONTAINS
 
       ! Given one planar area, reduce it to one "element"
       BLOCK
-        INTEGER :: i2,j,k,l,Usedn2, Setn2, np2, pn2, ind(128,2), ind2(128,2)
+        INTEGER :: j,k,l
 
         TYPE(Element_t), POINTER :: el, ed
 
