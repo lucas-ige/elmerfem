@@ -57,15 +57,17 @@ CONTAINS
     INTEGER :: n
     REAL(KIND=dp) :: Normals(:), Coord(:)
 !------------------------------------------------------------------------------
-    INTEGER :: i, i2, j, k, Usedn, Setn, pn, nn, &
+    INTEGER :: i, i2, j, k, l, Usedn, Setn, pn, nn, &
                Usedn2, Setn2, np2, pn2, ind(128,2), ind2(128,2)
-    LOGICAL, ALLOCATABLE :: Used(:)
-    INTEGER, ALLOCATABLE :: Set(:), Ref(:)
+    LOGICAL, ALLOCATABLE :: Used(:), Used2(:)
+    INTEGER, ALLOCATABLE :: Set(:), Set2(:), Ref(:)
+    REAL(KIND=dp), ALLOCATABLE :: DirVec2(:)
 
     LOGICAL  :: problems, handled
 
     REAL(KIND=dp) :: t0,t1,t2
     TYPE(Mesh_t), POINTER :: Mesh2
+    TYPE(Element_t), POINTER :: el, ed
 !------------------------------------------------------------------------------
     !t0 = cputime()
 
@@ -120,13 +122,7 @@ CONTAINS
 
       ! Given one planar area, reduce it to one "element"
       BLOCK
-        INTEGER :: j,k,l
-
-        TYPE(Element_t), POINTER :: el, ed
-
-        LOGICAL, ALLOCATABLE :: Used2(:)
-        INTEGER, ALLOCATABLE :: Set2(:)
-        REAL(KIND=dp), ALLOCATABLE :: DirVec2(:)
+        INTEGER :: j,k
 
         ALLOCATE(Set2(4*Setn), Used2(4*Setn), DirVec2(4*3*Setn))
        
