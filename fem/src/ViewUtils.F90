@@ -63,7 +63,7 @@ CONTAINS
 
     LOGICAL  :: problems
 
-    REAL(KIND=dp) :: t0,t1,t2
+    REAL(KIND=dp) :: t0, t1, t2, c(3)
     TYPE(Mesh_t), POINTER :: Mesh2
 !------------------------------------------------------------------------------
     !t0 = cputime()
@@ -119,7 +119,7 @@ CONTAINS
 
       ! Given one planar area, reduce it to one "element"
       BLOCK
-        REAL(KIND=dp) ::  c(3),r,eps=1d-8
+        REAL(KIND=dp) ::  r,eps=1d-8
         LOGICAL :: handled
         INTEGER :: i2,j,k,l,Usedn2, Setn2, np2, pn2, ind(128,2), ind2(128,2)
 
