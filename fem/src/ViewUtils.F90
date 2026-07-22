@@ -63,7 +63,7 @@ CONTAINS
 
     LOGICAL  :: problems
 
-    REAL(KIND=dp) :: t0, t1, t2, c(3)
+    REAL(KIND=dp) :: t0,t1,t2
     TYPE(Mesh_t), POINTER :: Mesh2
 !------------------------------------------------------------------------------
     !t0 = cputime()
@@ -156,7 +156,7 @@ CONTAINS
 
           ! normal vector of  the edge in the plane of the parent element
           BLOCK
-          REAL(KIND=dp) :: rr(3,3), d(3), e(3)
+          REAL(KIND=dp) :: rr(3,3), c(3), d(3), e(3)
 
           ! outer edge direction
           k = 3*(ed % NodeIndexes(1)-1)+1
