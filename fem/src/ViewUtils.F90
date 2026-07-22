@@ -122,7 +122,6 @@ CONTAINS
 
       ! Given one planar area, reduce it to one "element"
       BLOCK
-        INTEGER :: j,k
 
         ALLOCATE(Set2(4*Setn), Used2(4*Setn), DirVec2(4*3*Setn))
        
