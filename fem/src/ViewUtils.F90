@@ -61,7 +61,7 @@ CONTAINS
     LOGICAL, ALLOCATABLE :: Used(:)
     INTEGER, ALLOCATABLE :: Set(:), Ref(:)
 
-    LOGICAL  :: problems
+    LOGICAL  :: problems, handled
 
     REAL(KIND=dp) :: t0,t1,t2
     TYPE(Mesh_t), POINTER :: Mesh2
@@ -119,7 +119,6 @@ CONTAINS
 
       ! Given one planar area, reduce it to one "element"
       BLOCK
-        LOGICAL :: handled
         INTEGER :: i2,j,k,l,Usedn2, Setn2, np2, pn2, ind(128,2), ind2(128,2)
 
         TYPE(Element_t), POINTER :: el, ed
