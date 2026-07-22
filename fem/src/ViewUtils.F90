@@ -119,7 +119,6 @@ CONTAINS
 
       ! Given one planar area, reduce it to one "element"
       BLOCK
-        REAL(KIND=dp) ::  r
         LOGICAL :: handled
         INTEGER :: i2,j,k,l,Usedn2, Setn2, np2, pn2, ind(128,2), ind2(128,2)
 
